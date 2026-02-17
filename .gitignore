@@ -1,0 +1,11 @@
+# Ignore data folder
+dataset/
+
+# Ignore large files specifically
+*.csv
+*.zip
+*.mat
+
+# Ignore python cache
+__pycache__/
+*.pyc
