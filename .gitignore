@@ -9,3 +9,9 @@ dataset/
 # Ignore python cache
 __pycache__/
 *.pyc
+
+# Ignore WandB local files
+wandb/
+
+# Ignore checkpoints
+*.pkl
