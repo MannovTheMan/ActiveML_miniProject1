@@ -71,7 +71,7 @@ criterion = nn.CrossEntropyLoss()
 # ==========================================
 CALLS = 10     # Total BO trials
 EPOCHS = 3     # Epochs per trial
-BATCH_SIZE = 64 # Optimized for stability with high worker count on 32GB RAM
+BATCH_SIZE = 32 # Optimized for stability with high worker count on 32GB RAM
 
 # Global counter for customization
 current_call = 0
@@ -107,22 +107,23 @@ def train_model(params):
     # Optional: Print device once to be sure
     print(f"Using device: {device}") 
 
-    model = BrainTumorModel(num_claHardware Optimization -----------------------------------
-    
+    model = BrainTumorModel(num_classes=4, dropout=dropout).to(device)
+    optimizer = optim.Adamax(model.parameters(), lr=0.001)
+
+    # Split dataset for this trial
+    train_size = int(0.8 * len(dataset))
+    val_size = len(dataset) - train_size
+    # Fixed seed ensures identical train/val split every trial
+    # This isolates dropout as the only variable, making BO's effect clearly visible
+    generator = torch.Generator().manual_seed(SEED)
+    train_subset, val_subset = random_split(dataset, [train_size, val_size], generator=generator)
+
     # OPTIMIZATION FOR RYZEN 7 PRO 7840U (CPU Mode)
     # Your CPU has 16 threads. Leaving 2-4 for Windows/Chrome is safe.
     # Setting workers to 8-12 allows data preparation to happen in parallel.
-    workers = 12 
+    workers = 14 
     
     # persistent_workers=True keeps the RAM allocated between epochs, speeding up training
-    train_loader = DataLoader(train_subset, batch_size=BATCH_SIZE, shuffle=True, 
-                            num_workers=workers, persistent_workers=True)
-    val_loader = DataLoader(val_subset, batch_size=BATCH_SIZE, 
-                            num_workers=workers, persistent_workers=True)
-
-    # 
-    
-    # Persistent workers keeps the RAM allocated, speeding up epochs after the first one
     train_loader = DataLoader(train_subset, batch_size=BATCH_SIZE, shuffle=True, 
                             num_workers=workers, persistent_workers=True)
     val_loader = DataLoader(val_subset, batch_size=BATCH_SIZE, 
@@ -137,7 +138,7 @@ def train_model(params):
         # Progress bar for the batches in the current epoch
         pbar = tqdm(train_loader, desc=f"Epoch {epoch+1}/{EPOCHS}", leave=False)
         
-        for inputs, labels in pbar:
+        for batch_idx, (inputs, labels) in enumerate(pbar):
             inputs, labels = inputs.to(device), labels.to(device)
             
             optimizer.zero_grad()
@@ -147,8 +148,16 @@ def train_model(params):
             optimizer.step()
             running_loss += loss.item()
             
-            # Update progress bar with current loss
-            pbar.set_postfix({'loss': f'{loss.item():.4f}'})
+            # Use tqdm's own elapsed + remaining for a more accurate epoch total estimate
+            elapsed = pbar.format_dict.get('elapsed', 0)
+            remaining = (pbar.format_dict.get('total', 1) - pbar.format_dict.get('n', 0)) * pbar.format_dict.get('elapsed', 0) / max(pbar.format_dict.get('n', 1), 1)
+            epoch_total = elapsed + remaining
+            et_min, et_sec = divmod(int(epoch_total), 60)
+            
+            pbar.set_postfix({
+                'loss': f'{loss.item():.4f}',
+                'epoch_est': f'{et_min:02d}:{et_sec:02d}'
+            })
 
         # Calculate average epoch loss
         avg_train_loss = running_loss / len(train_loader)
@@ -189,7 +198,8 @@ def train_model(params):
     
     # Finish the WandB run so the next trial starts fresh
     run.finish()
-     # Return metric to minimize
+    
+    return avg_val_loss # Return metric to minimize
 
 SEED = 123
 
@@ -205,10 +215,9 @@ if __name__ == '__main__':
     res = gp_minimize(train_model,
                 [(0.0, 0.5)],       # Search space for dropout
                 acq_func = "EI",    # Expected Improvement
-                acq_func = "EI",
                 n_calls=CALLS,
                 n_random_starts=2,
-                noise=.1**2,
+                noise="gaussian",
                 random_state=SEED,
                 callback=[checkpoint_callback])
 
