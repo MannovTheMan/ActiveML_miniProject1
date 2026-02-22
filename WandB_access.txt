@@ -1,0 +1,5 @@
+Dette er linket til projektet i WandB:
+https://wandb.ai/2121jmmn-danmarks-tekniske-universitet-dtu/3d_cv_simpleTumorCNN
+
+Dette er det gamle BO run med efficient net:
+https://wandb.ai/2121jmmn-danmarks-tekniske-universitet-dtu/brain-tumor-bo-optimization/groups/BO_Dropout_Run_1/workspace?nw=nwuser2121jmmn
