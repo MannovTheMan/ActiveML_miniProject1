@@ -12,6 +12,3 @@ __pycache__/
 
 # Ignore WandB local files
 wandb/
-
-# Ignore checkpoints
-*.pkl
